@@ -29,7 +29,7 @@ type (
 
 func main() {
 	start := newRiver(
-		group{MISSIONARY, CANNIBAL, MISSIONARY, CANNIBAL, MISSIONARY, CANNIBAL},
+		group{MISSIONARY, MISSIONARY, MISSIONARY, CANNIBAL, CANNIBAL, CANNIBAL},
 		group{},
 		LEFT,
 		nil,
@@ -52,27 +52,14 @@ func main() {
 		}
 		fmt.Println("Considering:", possibility)
 		fmt.Println("  New Options:")
-		switch possibility.boat {
-		case LEFT:
-			possibility.allowableRight().ForEach(func(_ int, o *river) {
-				if considering.Contains(o.String()) {
-					return
-				}
-				fmt.Println("        ", o)
-				considering[o.String()] = o
-				possible.Add(o)
-			})
-		case RIGHT:
-			possibility.allowableLeft().ForEach(func(_ int, o *river) {
-				if considering.Contains(o.String()) {
-					return
-				}
-				fmt.Println("        ", o)
-				considering[o.String()] = o
-				possible.Add(o)
-			})
-
-		}
+		possibility.possibleNext().ForEach(func(_ int, o *river) {
+			if considering.Contains(o.String()) {
+				return
+			}
+			fmt.Println("        ", o)
+			considering[o.String()] = o
+			possible.Add(o)
+		})
 	}
 }
 
@@ -82,25 +69,6 @@ func newRiver(left, right group, boat side, prior *river) *river {
 		right: right.sort(),
 		boat:  boat,
 		prior: prior,
-	}
-}
-
-func (b group) allowable() bool {
-	asSlice := container.GSlice[person](b)
-	if !asSlice.Any(func(p person) bool { return p == MISSIONARY }) {
-		return true
-	}
-	return gslices.Fold[person, int](asSlice, 0, func(acc int, p person) int { return acc + int(p) }) >= 0
-}
-
-func (p person) String() string {
-	switch p {
-	case MISSIONARY:
-		return "M"
-	case CANNIBAL:
-		return "C"
-	default:
-		return "?"
 	}
 }
 
@@ -115,6 +83,25 @@ func (s side) String() string {
 	}
 }
 
+func (p person) String() string {
+	switch p {
+	case MISSIONARY:
+		return "M"
+	case CANNIBAL:
+		return "C"
+	default:
+		return "?"
+	}
+}
+
+func (b group) allowable() bool {
+	asSlice := container.GSlice[person](b)
+	if !asSlice.Any(func(p person) bool { return p == MISSIONARY }) {
+		return true
+	}
+	return gslices.Fold[person, int](asSlice, 0, func(acc int, p person) int { return acc + int(p) }) >= 0
+}
+
 func (b group) String() string {
 	return container.GSlice[person](b).JoinToString(genfuncs.StringerToString[person](), " ", "[", "]")
 }
@@ -125,14 +112,13 @@ func (b group) sort() group {
 }
 
 func (b group) remove(i int) (person, group) {
-	cp := []person(b)
-	cp = slices.Clone(cp)
+	cp := slices.Clone(b)
 	p := cp[i]
 	return p, slices.Delete(cp, i, i+1)
 }
 
 func (b group) add(p person) group {
-	cp := []person(b)
+	cp := slices.Clone(b)
 	return append(cp, p)
 }
 
@@ -146,29 +132,6 @@ func (r river) String() string {
 
 func (r river) success() bool {
 	return container.GSlice[person](r.left).Len() == 0
-}
-
-func (r river) ferryTwoRight(i, j int) (*river, bool) {
-	boat := group{}
-	right := r.right
-	left := r.left
-
-	// first
-	first := genfuncs.Min(i, j)
-	p, left := left.remove(first)
-	boat = boat.add(p)
-	right = right.add(p)
-
-	// second
-	second := genfuncs.Max(i, j) - 1
-	p, left = left.remove(second)
-	boat.add(p)
-	right = right.add(p)
-	proposed := newRiver(left, right, RIGHT, &r)
-	if !(proposed.allowable() && boat.allowable()) {
-		return nil, false
-	}
-	return proposed, true
 }
 
 func (r river) ferryFrom() group {
@@ -188,13 +151,17 @@ func (r river) ferryTo() group {
 func (r river) ferryOne(i int) (result *river, ok bool) {
 	from := r.ferryFrom()
 	to := r.ferryTo()
+	boat := group{}
 	var p person
+
 	p, from = from.remove(i)
-	boat := group{p}
+	boat = boat.add(p)
+	to = to.add(p)
+
 	if !boat.allowable() {
 		return nil, false
 	}
-	to = to.add(p)
+
 	if r.boat == LEFT {
 		result = newRiver(from, to, RIGHT, &r)
 	} else {
@@ -206,66 +173,53 @@ func (r river) ferryOne(i int) (result *river, ok bool) {
 	return result, true
 }
 
-func (r river) ferryTwoLeft(i, j int) (*river, bool) {
+func (r river) ferryTwo(i, j int) (result *river, ok bool) {
+	from := r.ferryFrom()
+	to := r.ferryTo()
 	boat := group{}
-	right := r.right
-	left := r.left
+	var p person
 
 	// first
 	first := genfuncs.Min(i, j)
-	p, right := right.remove(first)
+	p, from = from.remove(first)
 	boat = boat.add(p)
-	left = left.add(p)
+	to = to.add(p)
 
 	// second
 	second := genfuncs.Max(i, j) - 1
-	p, right = right.remove(second)
-	boat.add(p)
-	left = left.add(p)
+	p, from = from.remove(second)
+	boat = boat.add(p)
+	to = to.add(p)
 
-	proposed := newRiver(left, right, LEFT, &r)
-	if !(proposed.allowable() && boat.allowable()) {
+	if !boat.allowable() {
 		return nil, false
 	}
-	return proposed, true
-}
 
-func (r river) allowableRight() container.GSlice[*river] {
-	allowed := container.GMap[string, *river]{}
-	for i := 0; i < len(r.left); i++ {
-		// try one person
-		one, ok := r.ferryOne(i)
-		if ok {
-			allowed[one.String()] = one
-		}
-		for j := 0; j < len(r.left); j++ {
-			if i == j {
-				continue
-			}
-			// try two
-			two, ok := r.ferryTwoRight(i, j)
-			if ok {
-				allowed[two.String()] = two
-			}
-		}
+	if r.boat == LEFT {
+		result = newRiver(from, to, RIGHT, &r)
+	} else {
+		result = newRiver(to, from, LEFT, &r)
 	}
-	return allowed.Values()
+	if !result.allowable() {
+		return nil, false
+	}
+	return result, true
 }
 
-func (r river) allowableLeft() container.GSlice[*river] {
+func (r river) possibleNext() container.GSlice[*river] {
 	allowed := container.GMap[string, *river]{}
-	for i := 0; i < len(r.right); i++ {
+	for i := 0; i < len(r.ferryFrom()); i++ {
 		// try one person
 		one, ok := r.ferryOne(i)
 		if ok {
 			allowed[one.String()] = one
 		}
-		for j := 0; j < len(r.right); j++ {
+		for j := 0; j < len(r.ferryFrom()); j++ {
 			if i == j {
 				continue
 			}
 			// try two
-			two, ok := r.ferryTwoLeft(i, j)
+			two, ok := r.ferryTwo(i, j)
 			if ok {
 				allowed[two.String()] = two
 			}
