@@ -1,0 +1,4 @@
+github.com/nwillc/genfuncs v0.12.0 h1:jKoyaXA6LbQOw/1e0D68RI84iHs8NQbvtnaVUKe8hfM=
+github.com/nwillc/genfuncs v0.12.0/go.mod h1:MoL6QtVLb0vTYzCyKHNRrIrW8Uk9Z93YA/1FGKCASlo=
+golang.org/x/exp v0.0.0-20220428152302-39d4317da171 h1:TfdoLivD44QwvssI9Sv1xwa5DcL5XQr4au4sZ2F2NV4=
+golang.org/x/exp v0.0.0-20220428152302-39d4317da171/go.mod h1:lgLbSvA5ygNOMpwM/9anMpWVlVJ7Z+cHWq/eFuinpGE=
