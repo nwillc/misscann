@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/nwillc/genfuncs"
 	"github.com/nwillc/genfuncs/container"
-	"github.com/nwillc/genfuncs/container/gslices"
+	"github.com/nwillc/genfuncs/container/sequences"
 	"golang.org/x/exp/slices"
 )
 
@@ -96,14 +96,14 @@ func (p person) String() string {
 
 func (b group) allowable() bool {
 	asSlice := container.GSlice[person](b)
-	if !asSlice.Any(func(p person) bool { return p == MISSIONARY }) {
+	if !sequences.Any[person](asSlice, func(p person) bool { return p == MISSIONARY }) {
 		return true
 	}
-	return gslices.Fold[person, int](asSlice, 0, func(acc int, p person) int { return acc + int(p) }) >= 0
+	return sequences.Fold[person, int](asSlice, 0, func(acc int, p person) int { return acc + int(p) }) >= 0
 }
 
 func (b group) String() string {
-	return container.GSlice[person](b).JoinToString(genfuncs.StringerToString[person](), " ", "[", "]")
+	return sequences.JoinToString[person](container.GSlice[person](b), genfuncs.StringerToString[person](), " ", "[", "]")
 }
 
 func (b group) sort() group {

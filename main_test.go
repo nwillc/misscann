@@ -66,7 +66,7 @@ func Test_allowable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := allowable(tt.args.group); got != tt.want {
+			if got := group(tt.args.group).allowable(); got != tt.want {
 				t.Errorf("allowable() = %v, want %v", got, tt.want)
 			}
 		})
